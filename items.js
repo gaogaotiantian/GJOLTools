@@ -1,43 +1,3 @@
-const game_data = {
-    "items": {
-        "头": [
-            {
-                "装备名": "装备1", 
-                "等级": 180, 
-            }
-        ], 
-        "衣服": [
-            {
-                "装备名": "身体装备1",
-                "术": 12
-            },
-            {
-                "装备名": "身体装备2",
-                "术": 14
-            }
-        ],
-        "武器": [
-            {
-                "装备名": "碧华",
-                "等级": 195,
-                "攻击": 81.4,
-                "专注": 108.5,
-                "术": 20.7,
-                "急速": 45.2,
-                "会心": 32.3
-            }
-        ],
-        "左信物": [
-            {
-                "装备名": "碧华福器",
-                "等级": 195,
-                "攻击": 24.8,
-                "术": 26.5,
-            }
-        ]
-    }
-}
-
 const attribute_header = [
     "术",
     "攻击",
@@ -45,8 +5,9 @@ const attribute_header = [
     "专精",
     "会心",
     "专注",
-    "急速"
-]
+    "急速",
+    "最终攻击",
+];
 
 const item_positions = Object.keys(game_data["items"]);
 
@@ -61,8 +22,10 @@ const item_header = [
     "专精",
     "会心",
     "专注",
-    "急速"
-]
+    "急速",
+];
+
+char_attr = {};
 
 function create_attribute_chart() {
     let container = document.getElementById('item-attribute-container');
@@ -71,6 +34,7 @@ function create_attribute_chart() {
 
     container.appendChild(d);
 
+    // 面板属性
     for (let i = 0; i < attribute_header.length; i++) {
         let header = attribute_header[i];
         let col = document.createElement('div');
@@ -88,14 +52,13 @@ function create_attribute_chart() {
 
         d.appendChild(col);
     }
-    
 }
 
 function create_item_chart() {
     // Create the whole form first
     let container = document.getElementById('item-choice-container');
     let d = document.createElement('div');
-    d.className = "d-flex justify-content-around";
+    d.className = "d-flex justify-content-center";
     for (let i = 0; i < item_header.length; i++) {
         let header = item_header[i];
         let col = document.createElement('div');
@@ -110,7 +73,11 @@ function create_item_chart() {
             let position = item_positions[j];
             let position_div = document.createElement('div');
             position_div.className = "item-cell"
-            position_div.id = header + '-' + position;
+            if (j % 2 == 1) {
+                position_div.className += " item-cell-dark"
+            }
+            position_div.classList.add(header)
+            position_div.classList.add(position)
             if (header == "位置") {
                 position_div.innerHTML = position;
             }
@@ -126,7 +93,7 @@ function create_item_chart() {
         let position = item_positions[i];
         if (position in game_data["items"]) {
             // 装备选择
-            let name_cell = document.getElementById("装备-"+position);
+            let name_cell = document.getElementsByClassName("装备 "+position)[0];
             let options = []
             let select_id = position + "-select";
             name_cell.innerHTML = "";
@@ -137,7 +104,7 @@ function create_item_chart() {
             name_cell.appendChild(create_select(select_id, options));
 
             // 强化选择
-            name_cell = document.getElementById("强化-"+position);
+            name_cell = document.getElementsByClassName("强化 "+position)[0];
             name_cell.innerHTML = "";
             select_id = position + "-强化-select";
             options = [];
@@ -200,7 +167,7 @@ function refresh_item_data() {
                 // Do not change "装备" and "位置"
                 for (let j = 3; j < item_header.length; j++) {
                     let header = item_header[j];
-                    let cell = document.getElementById(header + '-' + position);
+                    let cell = document.getElementsByClassName(header + ' ' + position)[0];
                     if (header in data) {
                         cell.innerHTML = data[header];
                     } else {
@@ -215,22 +182,86 @@ function refresh_item_data() {
     for (let i = 0; i < attribute_header.length; i++) {
         let attr = attribute_header[i];
         let total_attr_points = attr_base(attr);
-        for (let j = 0; j < item_positions.length; j++) {
-            let position = item_positions[j];
-            total_attr_points += parseFloat(document.getElementById(attr + '-' + position).innerHTML);
+        if (item_header.indexOf(attr) > -1) {
+            Array.prototype.forEach.call(document.getElementsByClassName(attr), function(el) {
+                let val = parseFloat(el.innerHTML);
+                if (val) {
+                    total_attr_points += val
+                    if (el.classList.contains("戒指") || el.classList.contains("佩饰")) {
+                        total_attr_points += val
+                    }
+                }
+            })
         }
-        document.getElementById("属性-" + attr).innerHTML = total_attr_points;
-        document.getElementById("属性-" + attr + "-率").innerHTML = attr_percent(attr, total_attr_points);
+        char_attr[attr] = total_attr_points;
     }
+
+    update_attr();
+
+    // Write attributes to webpage
+    for (let i = 0; i < attribute_header.length; i++) {
+        let attr = attribute_header[i];
+        document.getElementById("属性-" + attr).innerHTML = char_attr[attr].toFixed(1);
+        document.getElementById("属性-" + attr + "-率").innerHTML = attr_percent(attr);
+    }
+    document.getElementById("战力").innerHTML = char_attr["最终战力"].toFixed(1);
     
 }
 
 function attr_base(attr) {
+    switch (attr) {
+        case "术": 
+            return 76;
+        case "攻击":
+            return 22;
+        case "专注":
+            return 20;
+    }
     return 0;
 }
 
-function attr_percent(attr, points) {
-    return "";
+function attr_percent(attr) {
+    switch (attr) {
+        case "强度":
+            return (char_attr["强度率"] * 100).toFixed(1) + "%";
+        case "专精":
+            return (char_attr["专精率一"] * 100).toFixed(1) + "% / " + (char_attr["专精率二"] * 100).toFixed(1) + "%";
+        case "会心":
+            return (char_attr["会心率"] * 100).toFixed(1) + "%";
+        case "专注":
+            return (char_attr["专注率"] * 100).toFixed(1) + "%";
+        case "急速":
+            return (char_attr["急速率"] * 100).toFixed(1) + "%";
+        default:
+            return ""
+
+    }
+}
+
+function update_attr() {
+    char_attr["攻击"] += char_attr["术"] * 0.4;
+    char_attr["强度"] += char_attr["术"] * 0.6;
+    char_attr["会心"] += char_attr["术"] * 0.3;
+
+    // 各种率
+    char_attr["强度率"]   = char_attr["强度"] / STRENGTH_CONST
+    char_attr["专精率一"] = char_attr["专精"] / EXPERTISE_CONST_FIRST
+    char_attr["专精率二"] = char_attr["专精"] / EXPERTISE_CONST_SECOND
+    char_attr["会心率"]   = char_attr["会心"] / CRITICAL_CONST
+    char_attr["专注率"]   = 0.8 + char_attr["专注"] / FOCUS_CONST
+    char_attr["急速率"]   = char_attr["急速"] / RAPID_CONST
+
+    char_attr["最终攻击"] = char_attr["攻击"] * (1 + char_attr["强度"] / STRENGTH_CONST);
+
+    // 计算最终战力
+    let first_percent = (document.getElementById("character-status-first-percent").value || 0) / 100;
+    let second_percent = (document.getElementById("character-status-second-percent").value || 0) / 100;
+    let other_percent = 1 - first_percent - second_percent
+    char_attr["最终战力"] = char_attr["最终攻击"] * 
+            (1   + 0.6 * char_attr["会心率"]) * 
+            (0.3 + 0.7 * char_attr["专注率"]) * 
+            (1 + first_percent * char_attr["专精率一"] + second_percent * char_attr["专精率二"]);
+    
 }
 
 $(function() {
@@ -239,4 +270,6 @@ $(function() {
     refresh_item_data();
 
     $('body').on('change', 'select', refresh_item_data);
+    $('body').on('blur', 'input', refresh_item_data);
+
 })

@@ -1,3 +1,8 @@
 .item-cell {
-    height: 35px;
+    padding: 10px;
+    height: 60px;
+}
+
+.item-cell-dark {
+    background-color: #eee;
 }
