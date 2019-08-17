@@ -15,6 +15,8 @@ const item_header = [
     "位置",
     "装备",
     "强化",
+    "附魔",
+    "附魔等级",
     "等级",
     "术",
     "攻击",
@@ -38,14 +40,14 @@ function create_attribute_chart() {
     for (let i = 0; i < attribute_header.length; i++) {
         let header = attribute_header[i];
         let col = document.createElement('div');
-        let attribute_name = document.createElement('p')
-        let attribute_data = document.createElement('p')
-        let attribute_data_percent = document.createElement('p')
+        let attribute_name = document.createElement('div')
+        let attribute_data = document.createElement('div')
+        let attribute_data_percent = document.createElement('div')
         attribute_name.innerHTML = header
         attribute_data.id = "属性-"+header
-        attribute_data.className = "item-cell"
+        attribute_data.className = "pt-2"
         attribute_data_percent.id = "属性-"+header+"-率"
-        attribute_data_percent.className = "item-cell"
+        attribute_data_percent.className = "pt-2"
         col.appendChild(attribute_name)
         col.appendChild(attribute_data)
         col.appendChild(attribute_data_percent)
@@ -113,6 +115,28 @@ function create_item_chart() {
             }
             name_cell.appendChild(create_select(select_id, options));
 
+            // 附魔
+            if (position in game_data["enchantment"]) {
+                // 附魔选择
+                name_cell = document.getElementsByClassName("附魔 "+position)[0];
+                name_cell.innerHTML = "";
+                select_id = position + "-附魔-select";
+                options = [];
+                for (let attr in game_data["enchantment"][position]) {
+                    options.push(attr);
+                }
+                name_cell.appendChild(create_select(select_id, options));
+
+                // 附魔等级选择
+                name_cell = document.getElementsByClassName("附魔等级 "+position)[0];
+                name_cell.innerHTML = "";
+                select_id = position + "-附魔等级-select";
+                options = [];
+                for (let j = 0; j <= 4; j++) {
+                    options.push(j);
+                }
+                name_cell.appendChild(create_select(select_id, options));
+            }
         }
     }
 }
@@ -165,7 +189,7 @@ function refresh_item_data() {
             let data = find_item_by_name(item_name);
             if (data) {
                 // Do not change "装备" and "位置"
-                for (let j = 3; j < item_header.length; j++) {
+                for (let j = 5; j < item_header.length; j++) {
                     let header = item_header[j];
                     let cell = document.getElementsByClassName(header + ' ' + position)[0];
                     if (header in data) {
@@ -175,6 +199,17 @@ function refresh_item_data() {
                     }
                 }
             }
+        }
+
+        let enchantment_select = document.getElementById(position+"-附魔-select");
+        let enchantment_level_select = document.getElementById(position+"-附魔等级-select");
+
+        if (enchantment_select && enchantment_level_select && enchantment_level_select.options[enchantment_level_select.selectedIndex].value > 0) {
+            let selected_enchantment = enchantment_select.options[enchantment_select.selectedIndex].value;
+            let selected_value = enchantment_level_select.options[enchantment_level_select.selectedIndex].value;
+            let cell = document.getElementsByClassName(selected_enchantment + ' ' +position)[0];
+            
+            cell.innerHTML = parseFloat(cell.innerHTML) || 0 + parseFloat(game_data["enchantment"][position][selected_enchantment][selected_value - 1]);
         }
     }
 
