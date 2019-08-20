@@ -49,8 +49,34 @@ def enchantment_data():
     }
     return ret
 
+def gem_data():
+    def get_data(row):
+        ret = {}
+        for key in row:
+            try:
+                val = int(row[key])
+                if val == 2:
+                    ret[key] = list(range(6, 22, 2))
+                elif val == 6:
+                    ret[key] = list(range(6, 51, 6))
+            except:
+                pass
+        return ret
+
+    gem_data = {}
+    with open('gem.csv') as csvfile:
+        reader = csv.DictReader(csvfile, delimiter=',')
+        for row in reader:
+            for place in row["位置"].split():
+                if place not in gem_data:
+                    gem_data[place] = {}
+
+                gem_data[place][row["名称"]] = get_data(row)
+    return gem_data
+
 game_data['items'] = items_data()
 game_data['enchantment'] = enchantment_data()
+game_data['gem'] = gem_data()
 
 with open('game_data.js', 'w', encoding = 'utf-8') as f:
     f.write("const game_data = ")

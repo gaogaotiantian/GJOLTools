@@ -1,4 +1,5 @@
 const attribute_header = [
+    "来源",
     "术",
     "攻击",
     "强度",
@@ -17,6 +18,10 @@ const item_header = [
     "强化",
     "附魔",
     "附魔等级",
+    "镶嵌一",
+    "镶嵌一等级",
+    "镶嵌二",
+    "镶嵌二等级",
     "等级",
     "术",
     "攻击",
@@ -32,24 +37,45 @@ char_attr = {};
 function create_attribute_chart() {
     let container = document.getElementById('item-attribute-container');
     let d = document.createElement('div');
-    d.className = "d-flex justify-content-around";
+    d.className = "d-flex justify-content-center text-center";
 
     container.appendChild(d);
 
     // 面板属性
     for (let i = 0; i < attribute_header.length; i++) {
         let header = attribute_header[i];
-        let col = document.createElement('div');
-        let attribute_name = document.createElement('div')
-        let attribute_data = document.createElement('div')
+        let col    = document.createElement('div');
+        let attribute_name         = document.createElement('div')
+        let attribute_data_xy      = document.createElement('div')
+        let attribute_data_item    = document.createElement('div')
+        let attribute_data_total   = document.createElement('div')
         let attribute_data_percent = document.createElement('div')
         attribute_name.innerHTML = header
-        attribute_data.id = "属性-"+header
-        attribute_data.className = "pt-2"
-        attribute_data_percent.id = "属性-"+header+"-率"
-        attribute_data_percent.className = "pt-2"
+        attribute_name.className = "title"
+        if (header == "来源") { 
+            attribute_data_xy.innerHTML = "星蕴";
+            attribute_data_xy.className = "pt-2 attribute-cell"
+            attribute_data_item.innerHTML = "装备";
+            attribute_data_item.className = "pt-2 attribute-cell"
+            attribute_data_total.innerHTML = "总计";
+            attribute_data_total.className = "pt-2 attribute-cell"
+        } else {
+            let attribute_data_xy_input = document.createElement('input');
+            attribute_data_xy_input.id = "星蕴-属性-"+header
+            attribute_data_xy_input.className = "attribute-input text-center";
+            attribute_data_xy.appendChild(attribute_data_xy_input);
+            attribute_data_xy.className = "pt-2 attribute-cell"
+            attribute_data_item.id = "装备-属性-"+header
+            attribute_data_item.className = "pt-2 attribute-cell"
+            attribute_data_total.id = "总计-属性-"+header
+            attribute_data_total.className = "pt-2 attribute-cell attribute-cell-dark"
+            attribute_data_percent.id = "属性-"+header+"-率"
+            attribute_data_percent.className = "pt-2 attribute-cell attribute-cell-dark"
+        }
         col.appendChild(attribute_name)
-        col.appendChild(attribute_data)
+        col.appendChild(attribute_data_xy)
+        col.appendChild(attribute_data_item)
+        col.appendChild(attribute_data_total)
         col.appendChild(attribute_data_percent)
 
         d.appendChild(col);
@@ -60,14 +86,19 @@ function create_item_chart() {
     // Create the whole form first
     let container = document.getElementById('item-choice-container');
     let d = document.createElement('div');
-    d.className = "d-flex justify-content-center";
+    d.className = "d-flex justify-content-center text-center";
     for (let i = 0; i < item_header.length; i++) {
         let header = item_header[i];
         let col = document.createElement('div');
         col.id = "装备-"+header
         
         let header_div = document.createElement('div');
-        header_div.innerHTML = header;
+        if (header.includes("等级")) {
+            header_div.innerHTML = "等级";
+        } else {
+            header_div.innerHTML = header;
+        }
+        header_div.className = "title";
         col.appendChild(header_div);
 
         // Create cells for each position
@@ -137,6 +168,30 @@ function create_item_chart() {
                 }
                 name_cell.appendChild(create_select(select_id, options));
             }
+
+            // 镶嵌
+            ["一", "二"].forEach(function(num) {
+                if (position + num in game_data["gem"]) {
+                    // 镶嵌选择
+                    name_cell = document.getElementsByClassName("镶嵌"+num+' '+position)[0];
+                    name_cell.innerHTML = "";
+                    select_id = position + "-镶嵌"+num+"-select";
+                    options = [];
+                    for (let gem in game_data["gem"][position+num]) {
+                        options.push(gem);
+                    }
+                    name_cell.appendChild(create_select(select_id, options));
+
+                    name_cell = document.getElementsByClassName("镶嵌"+num+"等级"+' '+position)[0];
+                    name_cell.innerHTML = "";
+                    select_id = position + "-镶嵌"+num+"等级-select";
+                    options = [];
+                    for (let j = 0; j <= 8; j++) {
+                        options.push(j);
+                    }
+                    name_cell.appendChild(create_select(select_id, options));
+                }
+            })
         }
     }
 }
@@ -189,11 +244,20 @@ function refresh_item_data() {
             let data = find_item_by_name(item_name);
             if (data) {
                 // Do not change "装备" and "位置"
-                for (let j = 5; j < item_header.length; j++) {
+                for (let j = item_header.indexOf("等级"); j < item_header.length; j++) {
                     let header = item_header[j];
                     let cell = document.getElementsByClassName(header + ' ' + position)[0];
                     if (header in data) {
-                        cell.innerHTML = data[header];
+                        if (header != "等级") {
+                            let enhance_select = document.getElementById(position+"-强化-select");
+                            let enhance = parseFloat(enhance_select.value || 0);
+                            let value   = (data[header] * (1+enhance*0.03));
+                            if (value) {
+                                cell.innerHTML = value.toFixed(1);
+                            } else {
+                                cell.innerHTML = "";
+                            }
+                        }
                     } else {
                         cell.innerHTML = 0;
                     }
@@ -201,6 +265,7 @@ function refresh_item_data() {
             }
         }
 
+        // Enchantment changes
         let enchantment_select = document.getElementById(position+"-附魔-select");
         let enchantment_level_select = document.getElementById(position+"-附魔等级-select");
 
@@ -210,11 +275,29 @@ function refresh_item_data() {
             let cell = document.getElementsByClassName(selected_enchantment + ' ' +position)[0];
             
             cell.innerHTML = (parseFloat(cell.innerHTML) || 0) + parseFloat(game_data["enchantment"][position][selected_enchantment][selected_value - 1]);
+
         }
+
+        // Gem changes
+        ["一", "二"].forEach(function(num) {
+            let gem_select = document.getElementById(position+"-镶嵌"+num+"-select");
+            let gem_level_select = document.getElementById(position+"-镶嵌"+num+"等级-select");
+            if (gem_select && gem_level_select && gem_level_select.options[gem_level_select.selectedIndex].value > 0) {
+                let selected_gem   = gem_select.options[gem_select.selectedIndex].value;
+                let selected_level = gem_level_select.options[gem_level_select.selectedIndex].value;
+                for (let attr in game_data["gem"][position+num][selected_gem]) {
+                    let selected_value = game_data["gem"][position+num][selected_gem][attr][selected_level-1];
+                    let cell = document.getElementsByClassName(attr+ ' ' +position)[0];
+
+                    cell.innerHTML = (parseFloat(cell.innerHTML) || 0) + parseFloat(selected_value);
+                }
+            }
+
+        })
     }
 
     // Update total attributes based on items
-    for (let i = 0; i < attribute_header.length; i++) {
+    for (let i = attribute_header.indexOf("术"); i < attribute_header.length; i++) {
         let attr = attribute_header[i];
         let total_attr_points = attr_base(attr);
         if (item_header.indexOf(attr) > -1) {
@@ -228,15 +311,29 @@ function refresh_item_data() {
                 }
             })
         }
+
         char_attr[attr] = total_attr_points;
+    }
+
+    // Write item attributes to webpage
+    for (let i = attribute_header.indexOf("术"); i < attribute_header.length; i++) {
+        let attr = attribute_header[i];
+        document.getElementById("装备-属性-" + attr).innerHTML = char_attr[attr].toFixed(1);
+    }
+
+    // Update total attributes based on xy
+    for (let i = attribute_header.indexOf("术"); i < attribute_header.length; i++) {
+        let attr = attribute_header[i];
+        let attr_xy = parseFloat(document.getElementById("星蕴-属性-"+attr).value) || 0;
+        char_attr[attr] += attr_xy;
     }
 
     update_attr();
 
-    // Write attributes to webpage
-    for (let i = 0; i < attribute_header.length; i++) {
+    // Write total attributes to webpage
+    for (let i = attribute_header.indexOf("术"); i < attribute_header.length; i++) {
         let attr = attribute_header[i];
-        document.getElementById("属性-" + attr).innerHTML = char_attr[attr].toFixed(1);
+        document.getElementById("总计-属性-" + attr).innerHTML = char_attr[attr].toFixed(1);
         document.getElementById("属性-" + attr + "-率").innerHTML = attr_percent(attr);
     }
     document.getElementById("战力").innerHTML = char_attr["最终战力"].toFixed(1);
@@ -279,7 +376,7 @@ function update_attr() {
     char_attr["会心"] += char_attr["术"] * 0.3;
 
     // 各种率
-    char_attr["强度率"]   = char_attr["强度"] / STRENGTH_CONST
+    char_attr["强度率"]   =  0.1 + char_attr["强度"] / STRENGTH_CONST 
     char_attr["专精率一"] = char_attr["专精"] / EXPERTISE_CONST_FIRST
     char_attr["专精率二"] = char_attr["专精"] / EXPERTISE_CONST_SECOND
     char_attr["会心率"]   = char_attr["会心"] / CRITICAL_CONST
@@ -300,11 +397,4 @@ function update_attr() {
 }
 
 $(function() {
-    create_attribute_chart();
-    create_item_chart();
-    refresh_item_data();
-
-    $('body').on('change', 'select', refresh_item_data);
-    $('body').on('blur', 'input', refresh_item_data);
-
 })
