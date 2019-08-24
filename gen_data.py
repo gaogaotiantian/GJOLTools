@@ -77,16 +77,21 @@ def gem_data():
 
 def qqx_data():
     ret = {"card": [], "combination": []}
+    season_dict = {}
     with open('qqx_card.csv') as csvfile:
         reader = csv.DictReader(csvfile, delimiter=',')
         idx = 0
         for row in reader:
             ret["card"].append({"季节": row["季节"], "卡牌": row["卡牌"], "序号": idx})
+            season_dict[row["卡牌"]] = row["季节"]
             idx += 1
+    ret["season"] = season_dict
     with open('qqx_combination.csv') as csvfile:
         reader = csv.DictReader(csvfile, delimiter=',')
         for row in reader:
-            ret["combination"].append({"分数": int(row["分数"]), "卡牌": [row[key] for key in row if row[key] and key != "分数"]})
+            seasons = [season_dict[row[key]] for key in row if row[key] and key != "分数"]
+            seasons = {season: seasons.count(season) for season in "春夏秋冬"}
+            ret["combination"].append({"分数": int(row["分数"]), "卡牌": [row[key] for key in row if row[key] and key != "分数"], "季节": seasons})
     return ret
 
 game_data['items'] = items_data()
