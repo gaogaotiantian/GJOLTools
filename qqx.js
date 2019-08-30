@@ -10,17 +10,24 @@ class Card {
         this.evaluation = 0;
     }
 
-    render(evaluation = false) {
+    render(options = {}) {
         let card = document.createElement("a");
         card.className = `btn m-1 game-card game-card-${this.season}`;
+        card.setAttribute("name", this.name);
         if (game.selectedCard && this.index == game.selectedCard.index) {
             card.classList.add("game-card-selected");
         }
-        if (evaluation) {
+
+        if ("draggable" in options && options["draggable"]) {
+            card.classList.add("draggable-card");
+        }
+
+        if ("evaluation" in options && options["evaluation"]) {
             card.innerHTML = `${this.name}  (${(this.evaluation*100).toFixed(0)})`;
         } else {
             card.innerHTML = this.name;
         }
+
         return card;
     }
 }
@@ -227,6 +234,12 @@ class Player {
         pocket.id           = `qqx-card-table-pocket-${this.id}-div`;
         hand.id             = `qqx-card-table-hand-${this.id}-div`;
 
+        pocket.setAttribute("player", this.id);
+        pocket.setAttribute("position", "pocket");
+
+        hand.setAttribute("player", this.id);
+        hand.setAttribute("position", "hand");
+
         switch (this.id) {
             case "dealer":
                 hand_title.innerHTML = "场上牌"
@@ -247,9 +260,9 @@ class Player {
         pocket.appendChild(pocket_title);
 
         for (let i = 0; i < this.hand.length; i++) {
-            let card = this.hand[i].render();
+            let card = this.hand[i].render({"draggable": true});
             if (this.id == "dealer") {
-                card = this.hand[i].render(true);
+                card = this.hand[i].render({"evaluation": true, "draggable": true});
             }
             card.addEventListener("click", this.cardClickEvent(this.hand[i]));
             if (i > 0 && this.hand[i].season != this.hand[i-1].season) {
@@ -258,7 +271,7 @@ class Player {
             hand.appendChild(card);
         }
         for (let i = 0; i < this.pocket.length; i++) {
-            let card = this.pocket[i].render();
+            let card = this.pocket[i].render({"draggable": true});
             card.addEventListener("click", this.cardClickEvent(this.pocket[i]));
             if (i > 0 && this.pocket[i].season != this.pocket[i-1].season) {
                 pocket.appendChild(document.createElement("br"));
@@ -283,6 +296,8 @@ class Game {
         this.player   = new Player("player");
         this.dealer   = new Player("dealer");
         this.selectedCard = null;
+        this.draggedCard  = null;
+        this.draggedCardDom = null;
         this.dealer.prepareCards();
         this.combinations = this.loadCombinations();
         this.possibleCombinations = [];
@@ -294,6 +309,20 @@ class Game {
             ret.push(new Combination(qqx_data["combination"][i]))
         }
         return ret;
+    }
+
+    findCardByName(cardName) {
+        let g = this;
+        for (let player of ["opponent", "dealer", "player"]) {
+            for (let position of ["hand", "pocket"]) {
+                for (let card of g[player][position]) {
+                    if (card.name == cardName) {
+                        return card;
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     moveCard(from, to, pos, card) {
@@ -511,6 +540,47 @@ function keyDownEvent(e) {
     game.refresh();
 }
 
+function mouseDownEvent(e) {
+    if (e.target.classList.contains("draggable-card")) {
+        game.draggedCard = game.findCardByName(e.target.getAttribute("name"));
+        game.draggedCardDom = e.target;
+        game.draggedCardDom.style.zIndex = 15;
+    }
+}
+
+function mouseUpEvent(e) {
+    if (game.draggedCard) {
+        for (let id of ["opponent", "dealer", "player"]) {
+            for (let position of ["pocket", "hand"]) {
+                let d = document.getElementById(`qqx-card-table-${position}-${id}-div`);
+                if (d.offsetLeft <= e.clientX && e.clientX <= d.offsetLeft + d.offsetWidth &&
+                    d.offsetTop  <= e.clientY && e.clientY <= d.offsetTop + d.offsetHeight) {
+                    if (game.draggedCard.owner != id || game.draggedCard.position != position) {
+                        game.moveCard(game[game.draggedCard.owner], game[id], position, game.draggedCard);
+                        game.selectedCard = null;
+                        game.refresh();
+                    }
+                }
+            }
+        } 
+        game.draggedCard = null;
+        game.draggedCardDom = null;
+    }
+}
+
+function mouseMoveEvent(e) {
+    if (game.draggedCard) {
+        let x = e.clientX;
+        let y = e.clientY;
+        let d = game.draggedCardDom;
+
+        d.style.position = "fixed";
+        d.style.left = (x - d.offsetWidth/2) + "px";
+        d.style.top = (y - d.offsetHeight/2) + "px";
+
+    }
+}
+
 $(function() {
     game = new Game();
 
@@ -526,5 +596,9 @@ $(function() {
             game.display();
         }
     };
+
+    document.onmousedown = mouseDownEvent;
+    document.onmouseup = mouseUpEvent;
+    document.onmousemove = mouseMoveEvent;
     game.display();
 })
